@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEA CLI App README</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: auto; padding: 1em; }
+        h1, h2, h3 { color: #333; }
+        code { background: #f4f4f4; padding: 2px 4px; border-radius: 4px; }
+        pre { background: #f4f4f4; padding: 1em; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>TEA Encryption CLI App</h1>
+
+    <h2>1. What is TEA?</h2>
+    <p>
+        TEA (Tiny Encryption Algorithm) is a simple, fast, and secure block cipher designed by David Wheeler and Roger Needham in 1994. It operates on 64-bit blocks of data using a 128-bit key. TEA’s simplicity stems from its use of only additions, XORs, and shifts in a Feistel network structure, making it easy to implement in software and hardware.
+    </p>
+    <h3>How TEA Works</h3>
+    <ol>
+        <li>Split each 64-bit block into two 32-bit halves <code>v0</code> and <code>v1</code>.</li>
+        <li>Use a 128-bit key divided into four 32-bit words <code>k[0..3]</code>.</li>
+        <li>Iterate 32 rounds (Feistel rounds). In each round:
+            <pre><code>sum += DELTA;
+v0 += ((v1 << 4) + k[0]) ^ (v1 + sum) ^ ((v1 >> 5) + k[1]);
+v1 += ((v0 << 4) + k[2]) ^ (v0 + sum) ^ ((v0 >> 5) + k[3]);</code></pre>
+            where <code>DELTA</code> is a constant (0x9E3779B9). All additions wrap around (mod 2³²).
+        </li>
+        <li>Decryption runs the same rounds in reverse by subtracting <code>DELTA</code> each time.</li>
+    </ol>
+
+    <h2>2. The <code>tea</code> App</h2>
+    <p>
+        This Rust-based CLI tool (named <code>tea</code> in <code>Cargo.toml</code>) encrypts or decrypts files in place using TEA. It pads files to an 8-byte boundary, processes each chunk, and overwrites the original file.
+    </p>
+    <h3>Modes</h3>
+    <ul>
+        <li><code>encrypt</code>: Encrypts the file in place.</li>
+        <li><code>decrypt</code>: Decrypts the file in place.</li>
+    </ul>
+    <h3>Command-Line Usage</h3>
+    <pre><code>tea &lt;mode&gt; &lt;k0&gt; &lt;k1&gt; &lt;k2&gt; &lt;k3&gt; &lt;filepath&gt;</code></pre>
+    <p>
+        - <code>mode</code>: <code>encrypt</code> or <code>decrypt</code><br>
+        - <code>k0</code>...<code>k3</code>: Four 32-bit key words in hex (e.g. <code>0x01234567</code>)<br>
+        - <code>filepath</code>: Path to the file to process
+    </p>
+
+    <h2>3. Full Example</h2>
+    <p>Assume we have a text file <code>a.txt</code> with some content, and we’ll use the key:</p>
+    <pre><code>0x01234567 0x89abcdef 0xfedcba98 0x76543210</code></pre>
+
+    <h3>Build the App</h3>
+    <pre><code>cargo build --release</code></pre>
+
+    <h3>Encrypt <code>a.txt</code></h3>
+    <pre><code>./target/release/tea encrypt \
+  0x01234567 0x89abcdef 0xfedcba98 0x76543210 \
+  a.txt
+# Output: "encrypt complete: a.txt"</code></pre>
+
+    <h3>Decrypt <code>a.txt</code></h3>
+    <pre><code>./target/release/tea decrypt \
+  0x01234567 0x89abcdef 0xfedcba98 0x76543210 \
+  a.txt
+# Output: "decrypt complete: a.txt"</code></pre>
+
+    <p>After decryption, <code>a.txt</code> is restored to its original plaintext.</p>
+
+    <hr>
+    <p>© 2025 TEA CLI App. Built with Rust.</p>
+</body>
+</html>
