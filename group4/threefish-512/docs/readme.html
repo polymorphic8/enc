@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>threefish_cli README</title>
+  <style>
+    body { font-family: sans-serif; line-height: 1.6; margin: 2em; }
+    h1, h2, h3 { color: #333; }
+    pre { background: #f4f4f4; padding: 1em; overflow-x: auto; }
+    code { font-family: monospace; }
+    section { margin-bottom: 2em; }
+  </style>
+</head>
+<body>
+  <h1>threefish_cli</h1>
+  <p><strong>Version:</strong> 0.1.0</p>
+
+  <section>
+    <h2>Overview</h2>
+    <p><code>threefish_cli</code> is a command-line utility for in-place file encryption and decryption using the <strong>Threefish-512</strong> tweakable block cipher in CTR mode. It supports:</p>
+    <ul>
+      <li>Atomic in-place operations: writes to a temporary file and renames it over the original.</li>
+      <li>Simple key management: uses a 64-byte raw key from <code>key.key</code>, with a <code>keygen</code> command to initialize a default key.</li>
+      <li>High performance and moderate block size: 512-bit blocks processed in 64‑byte chunks.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Installation</h2>
+    <pre><code>git clone https://github.com/yourname/threefish_cli.git
+cd threefish_cli
+cargo build --release
+cp target/release/threefish_cli /usr/local/bin/</code></pre>
+  </section>
+
+  <section>
+    <h2>Usage</h2>
+    <pre><code># Generate a default key (creates key.key)
+threefish_cli keygen
+
+# Encrypt a file in-place
+threefish_cli encrypt myfile.txt
+
+# Decrypt the same file
+threefish_cli decrypt myfile.txt</code></pre>
+  </section>
+
+  <section>
+    <h2>Key and Security</h2>
+    <p>The cipher uses a <strong>64-byte (512-bit)</strong> key loaded from <code>key.key</code>. You can replace this file with your own randomly generated key if desired.</p>
+    <p>The <strong>Threefish-512</strong> cipher provides:</p>
+    <ul>
+      <li><em>Large block size</em>: 512-bit blocks resist birthday attacks better than 128‑bit ciphers.</li>
+      <li><em>Flexible key size</em>: up to 512-bit key, here fixed at 512 bits for maximum security margin.</li>
+      <li><em>Tweakability</em>: per-block tweaks eliminate the need for external chaining modes.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Tweakable Block Cipher Explained</h2>
+    <p>A <strong>tweakable block cipher</strong> extends a standard block cipher with an additional <em>tweak</em> parameter. Encryption becomes:</p>
+    <pre><code>C = E<sub>K,T</sub>(P)</code></pre>
+    <p>Where:</p>
+    <ul>
+      <li><code>K</code> is the secret key.</li>
+      <li><code>P</code> is the plaintext block.</li>
+      <li><code>T</code> is the <em>tweak</em>, a non‑secret value that can vary per block.</li>
+    </ul>
+    <p>In <code>threefish_cli</code>, we use a 128-bit tweak composed of:</p>
+    <ol>
+      <li><strong>Nonce</strong> (64 bits): randomly generated per file.</li>
+      <li><strong>Block index</strong> (64 bits): simple counter for each 64‑byte chunk.</li>
+    </ol>
+    <p>By varying the tweak for each block, we ensure:</p>
+    <ul>
+      <li>No two blocks encrypt the same under the same key and tweak.</li>
+      <li>No external mode (CTR/CBC) is required for block‑level uniqueness.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Strengths and Trade-offs</h2>
+    <p><code>threefish_cli</code> is ideal when you need:</p>
+    <ul>
+      <li>Extremely strong theoretical security against generic attacks.</li>
+      <li>Large block sizes to minimize collision risks.</li>
+      <li>Built-in tweak support for simple domain separation.</li>
+    </ul>
+    <p>However, for general interoperability and hardware acceleration, <strong>AES-256</strong> remains more widely supported.</p>
+  </section>
+
+  <section>
+    <h2>License</h2>
+    <p>MIT License. See <code>LICENSE</code> file for details.</p>
+  </section>
+
+</body>
+</html>
