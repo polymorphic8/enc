@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ezxcha README</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 2rem; max-width: 800px; }
+        h1, h2 { color: #333; }
+        pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
+        code { font-family: monospace; background: #eef; padding: 0.2rem 0.4rem; }
+        section { margin-bottom: 2rem; }
+        .footer { font-size: 0.9rem; color: #666; border-top: 1px solid #ddd; padding-top: 1rem; }
+    </style>
+</head>
+<body>
+    <h1>ezxcha</h1>
+    <p><strong>Version:</strong> 0.1.0<br>
+       <strong>Edition:</strong> 2024</p>
+
+    <section>
+        <h2>Overview</h2>
+        <p><code>ezxcha</code> is a command-line utility to encrypt or decrypt files using <strong>XChaCha20-Poly1305</strong>. A magic header auto-detects mode: if the file starts with <code>XCHACHA20-POLY1305</code>, it decrypts; otherwise it encrypts—no flags required.</p>
+    </section>
+
+    <section>
+        <h2>Features</h2>
+        <ul>
+            <li>XChaCha20-Poly1305 (256-bit key + 192-bit nonce) for modern AEAD security</li>
+            <li>Magic header <code>XCHACHA20-POLY1305</code> for automatic mode detection</li>
+            <li>Safe in-place overwrite using a temporary <code>.tmp</code> file</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>Installation</h2>
+        <p>Ensure you have <a href="https://www.rust-lang.org/">Rust</a> (1.65+). Then clone and build:</p>
+        <pre><code>git clone https://github.com/yourusername/ezxcha.git
+cd ezxcha
+cargo build --release</code></pre>
+        <p>The binary will be at <code>target/release/ezxcha</code>.</p>
+    </section>
+
+    <section>
+        <h2>Cargo.toml</h2>
+        <pre><code>[package]
+name = "ezxcha"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chacha20poly1305 = "0.10.1"
+rand            = "0.9.1"</code></pre>
+    </section>
+
+    <section>
+        <h2>Usage</h2>
+        <pre><code># Encrypt data.bin → data.bin (overwritten)
+./target/release/ezxcha data.bin
+
+# Decrypt an encrypted file
+./target/release/ezxcha data.bin</code></pre>
+    </section>
+
+    <section>
+        <h2>Configuration</h2>
+        <p>Edit <code>src/main.rs</code> and replace the example key with your own 32-byte secret:</p>
+        <pre><code>let key_bytes: [u8; 32] = [
+    0x00, 0x01, 0x02, /* … your random bytes … */
+];</code></pre>
+    </section>
+
+    <section>
+        <h2>Security Considerations</h2>
+        <ul>
+            <li>Keep your key secret (environment variables or a vault).</li>
+            <li>XChaCha20-Poly1305’s 192-bit nonce avoids reuse worries, but don’t reuse nonces.</li>
+            <li>Loads entire file into memory—best for moderate-sized files.</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>License</h2>
+        <p>MIT — see the <code>LICENSE</code> file for details.</p>
+    </section>
+
+    <div class="footer">
+        <p>&copy; 2025 Your Name. Built with Rust and <a href="https://crates.io/crates/chacha20poly1305">chacha20poly1305</a>.</p>
+    </div>
+</body>
+</html>

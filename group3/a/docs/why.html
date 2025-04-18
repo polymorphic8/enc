@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Secure Pure Rust File Encryption</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: auto; }
+    h1, h2, h3 { color: #333; }
+    ul { margin-left: 20px; }
+    code { background: #f4f4f4; padding: 2px 4px; border-radius: 4px; }
+    strong { color: #000; }
+  </style>
+</head>
+<body>
+
+  <h1>Secure and Reliable File Encryption in Pure Rust</h1>
+
+  <h2>Why ChaCha20‑Poly1305?</h2>
+  <p><strong>Simplicity of primitives</strong><br>
+    ChaCha20 is just 32‑bit additions, XORs, and rotations—trivial to code in Rust, easily audited, and naturally constant‑time (no lookup tables) so you’re less likely to introduce timing side‑channels. Poly1305 is a one‑time authenticator consisting of a few modular multiplications and additions. Together they provide confidentiality (ChaCha20) and integrity/authenticity (Poly1305) in one “encrypt‑and‑tag” pass.</p>
+
+  <p><strong>Safety and reliability</strong><br>
+    As an AEAD scheme, there’s no separate “encrypt then HMAC” choreography to get wrong. You generate a nonce, run ChaCha20 to produce ciphertext, then run Poly1305 over the ciphertext (and any associated header data) to get a tag. On decryption you immediately verify the tag—and if it fails, you never release any plaintext.</p>
+
+  <p><strong>Performance</strong><br>
+    In pure software ChaCha20 often matches or out‑performs a software‑only AES implementation, and it doesn’t require hardware AES‑NI. By contrast, AES‑GCM in pure Rust demands implementing S‑boxes, key schedules, and GHASH, which adds complexity and more potential for subtle bugs or timing leaks.</p>
+
+  <p><strong>Portability</strong><br>
+    No C, inline assembly, or OS‑specific APIs—just safe Rust. It will compile and run anywhere that Rust does.</p>
+
+  <p><strong>Extensibility</strong><br>
+    If you later need a larger nonce space (e.g. for streaming or many millions of files per key), you can swap in XChaCha20 (using HChaCha20 to stretch a 128‑bit nonce) with minimal changes to your core loops.</p>
+
+  <h2>Key Considerations When Rolling Your Own AEAD</h2>
+  <ul>
+    <li><strong>Nonce management</strong><br>
+      • Generate a cryptographically secure 96‑bit random nonce per file (e.g. from <code>/dev/urandom</code> or Windows CNG).<br>
+      • Never reuse a <code>(key, nonce)</code> pair.</li>
+
+    <li><strong>Key handling</strong><br>
+      If deriving from a password, implement a simple KDF such as PBKDF2‑HMAC‑SHA256 (a loop of HMAC‑SHA256 invocations) or Argon2. Store salt and iteration parameters in the file header.</li>
+
+    <li><strong>File format</strong><br>
+      Define a header containing:<br>
+      &nbsp;&nbsp;– Magic bytes/version<br>
+      &nbsp;&nbsp;– KDF parameters or key ID<br>
+      &nbsp;&nbsp;– The 96‑bit nonce<br>
+      Follow with your ciphertext and the 16‑byte Poly1305 tag.</li>
+
+    <li><strong>Chunking for large files</strong><br>
+      Process in fixed-size chunks (e.g. 64 KiB). Use a per-chunk nonce (incrementing a counter), encrypt each chunk, tag it, and stream out <code>(ciphertext, tag)</code> pairs.</li>
+
+    <li><strong>Constant‑time coding</strong><br>
+      Avoid branches or table lookups based on secret data. Stick to arithmetic and bitwise operations only.</li>
+  </ul>
+
+  <h2>Why <em>Not</em> AES‑GCM in Pure Rust?</h2>
+  <p>
+    AES’s S‑boxes and MixColumns demand either table-driven or bit‑sliced implementations, which is a lot more code to get right and to audit for constant‑time behavior. The GHASH authenticator relies on GF(2¹²⁸) multiplications, which are subtle and easy to implement incorrectly. While AES‑GCM is great when using a battle‑tested crate or hardware support, writing one from scratch in pure Rust is far more intricate than ChaCha20‑Poly1305.
+  </p>
+
+  <h2>Bottom Line</h2>
+  <p>
+    For a zero‑dependency, pure‑Rust file encryption library, your clear choice is <strong>ChaCha20‑Poly1305</strong> AEAD (and if you need extra nonce space, <strong>XChaCha20‑Poly1305</strong>). It’s straightforward to implement in constant time, includes built‑in authentication, and delivers excellent software performance.
+  </p>
+
+</body>
+</html>

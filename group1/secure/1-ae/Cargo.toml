@@ -1,0 +1,13 @@
+
+[package]
+name = "ae"
+version = "1.0.0"
+edition = "2021"
+
+
+[dependencies]
+aes-gcm-siv = "0.10"
+rand = "0.8"
+tempfile = "3.6"
+anyhow = "1"
+

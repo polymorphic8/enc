@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Keygen32 - README</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      line-height: 1.5;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+    code {
+      background-color: #f5f2f0;
+      padding: 2px 4px;
+      font-size: 0.9em;
+    }
+    pre {
+      background-color: #f5f2f0;
+      padding: 1rem;
+      overflow: auto;
+    }
+    h1, h2, h3, h4 {
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+    }
+    hr {
+      margin: 2rem 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Keygen32</h1>
+  <p>
+    <strong>Keygen32</strong> is a Rust CLI app that generates a deterministic
+    32-byte key from a given password. It uses the Argon2 (Argon2id variant) key
+    derivation function and two compile-time “seed” strings, ensuring that the
+    same password always produces the same key <em>for a given set of seeds</em>.
+    By changing these seeds and recompiling, the same password will yield an
+    entirely different 32-byte key.
+  </p>
+
+  <hr />
+
+  <h2>Features</h2>
+  <ul>
+    <li>Deterministic key generation using Argon2id (argon2 0.5.3)</li>
+    <li>32-byte output written to a file</li>
+    <li>Two compile-time “seed” strings to customize builds</li>
+    <li>Easy to modify or integrate into other applications</li>
+  </ul>
+
+  <hr />
+
+  <h2>File Structure</h2>
+  <p>
+    Below is a simple overview of how your project might be structured:
+  </p>
+  <pre><code>.
+├── Cargo.toml
+├── README.html (this file)
+└── src
+    └── main.rs
+</code></pre>
+
+  <hr />
+
+  <h2>Usage</h2>
+  <ol>
+    <li>
+      <strong>Edit seeds (optional):</strong> In <code>src/main.rs</code>, look
+      for the constants:
+      <pre><code class="language-rust">
+const SALT_SEED: &str = "my_secret_salt_1";
+const SECRET_PEPPER: &str = "my_secret_pepper_2";
+      </code></pre>
+      Change these before compiling if you want a unique build that yields a
+      different key from the same password.
+    </li>
+    <li>
+      <strong>Edit the output file name (optional):</strong> Also at the top of
+      <code>main.rs</code>, the constant
+      <code>KEY_FILE_NAME</code> determines the file to which the 32-byte key is
+      written:
+      <pre><code class="language-rust">
+const KEY_FILE_NAME: &str = "mykey.bin";
+      </code></pre>
+      Change it if you prefer a different file name.
+    </li>
+    <li>
+      <strong>Build the project:</strong>
+      <pre><code>
+cargo build --release
+      </code></pre>
+      This will generate an optimized executable in
+      <code>target/release/keygen32</code>.
+    </li>
+    <li>
+      <strong>Run the project with your password:</strong>
+      <pre><code>
+./target/release/keygen32 "YourPasswordHere"
+      </code></pre>
+      The program will create a file (for example, <code>mykey.bin</code>)
+      containing 32 bytes derived from your password and the compile-time
+      seeds.
+    </li>
+  </ol>
+
+  <hr />
+
+  <h2>Sample Code</h2>
+  <p>
+    Below is the core <code>src/main.rs</code>. You can copy/paste it into your
+    project if you haven’t already created one:
+  </p>
+  <pre><code class="language-rust">
+use std::env;
+use std::fs::File;
+use std::io::Write;
+
+use argon2::{
+    Argon2,
+    Algorithm,
+    Params,
+    Version,
+};
+
+/// The name of the key file to be created.
+/// Change this before compile time if you want a different filename.
+const KEY_FILE_NAME: &str = "mykey.bin";
+
+/// A salt or "seed" that you can change before compile time 
+/// to produce a different key for the same password.
+const SALT_SEED: &str = "my_secret_salt_1";
+
+/// Another "seed"/pepper that you can change. Combining multiple 
+/// seeds lets you more easily differentiate builds.
+const SECRET_PEPPER: &str = "my_secret_pepper_2";
+
+fn main() {
+    // Collect command line arguments
+    let args: Vec&lt;String&gt; = env::args().collect();
+    if args.len() &lt; 2 {
+        eprintln!("Usage: {} &lt;PASSWORD&gt;", args[0]);
+        std::process::exit(1);
+    }
+
+    let password = &args[1];
+
+    // Combine the seeds to form a salt
+    let combined_salt = format!("{}{}", SALT_SEED, SECRET_PEPPER);
+
+    // Configure Argon2 parameters (this is an example; adjust as needed)
+    let params = Params::default(); 
+    // or: let params = Params::new(65536, 3, 1, None).unwrap();
+
+    // Create an Argon2 instance (using Argon2id)
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+
+    // Prepare a 32-byte buffer to hold the derived key
+    let mut key_32 = [0u8; 32];
+
+    // Derive the key (raw bytes) from the password and salt
+    argon2
+        .hash_password_into(password.as_bytes(), combined_salt.as_bytes(), &mut key_32)
+        .expect("Error hashing password with Argon2");
+
+    // Write the 32-byte key to the configured file
+    let mut file = File::create(KEY_FILE_NAME)
+        .expect("Unable to create key file");
+    file.write_all(&key_32)
+        .expect("Unable to write key data to file");
+
+    println!("32-byte key has been written to {}", KEY_FILE_NAME);
+}
+  </code></pre>
+
+  <hr />
+
+  <h2>Notes</h2>
+  <ul>
+    <li>
+      Changing any part of the seeds (<code>SALT_SEED</code>, 
+      <code>SECRET_PEPPER</code>), the file name, or the Argon2 parameters before
+      compiling will produce a different 32-byte key for the same password.
+    </li>
+    <li>
+      If you use this tool for cryptographic purposes, please ensure that you
+      understand Argon2 parameters (e.g., memory size and iteration count)
+      suitable for your security model.
+    </li>
+  </ul>
+
+  <hr />
+
+  <h2>License</h2>
+  <p>
+    You can specify your own license here. For example:
+  </p>
+  <pre><code>
+MIT License
+
+Copyright &copy; 2025 ...
+  </code></pre>
+
+</body>
+</html>
+

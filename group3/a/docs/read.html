@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>XChaCha20‑Poly1305 CLI — README</title>
+  <style>
+    body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 2rem auto; }
+    h1, h2, h3 { color: #222; }
+    pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
+    code { background: #f0f0f0; padding: 2px 4px; border-radius: 4px; }
+    ul { margin-left: 1.2rem; }
+  </style>
+</head>
+<body>
+
+  <h1>XChaCha20‑Poly1305 File Encryption CLI</h1>
+  <p>
+    A self‑contained, pure‑Rust tool to encrypt or decrypt a file in‑place with XChaCha20‑Poly1305 AEAD.  
+    No external crypto crates — everything is implemented in safe Rust with minimal `unsafe` only for OS RNG.
+  </p>
+
+  <h2>Usage</h2>
+  <pre><code>
+# Encrypt (no header present):
+a.exe secret.key somefile.dat
+
+# Decrypt (header found):
+a.exe secret.key somefile.dat
+  </code></pre>
+  <p>
+    The tool detects a 4‑byte magic header <code>XCP1</code> at the start. If present → decrypt, otherwise → encrypt.  
+    It writes to <code>filename.tmp</code> then atomically renames over the original.
+  </p>
+
+  <h2>Core Components</h2>
+  <h3>1. RNG & Nonce</h3>
+  <ul>
+    <li><strong>Unix:</strong> Reads 24 bytes from <code>/dev/urandom</code>.</li>
+    <li><strong>Windows:</strong> Calls <code>BCryptGenRandom</code> from <code>bcrypt.dll</code>.</li>
+    <li>Generates a fresh 24‑byte nonce once per file, written in the header.</li>
+  </ul>
+
+  <h3>2. XChaCha20</h3>
+  <ol>
+    <li>Split 24‑byte nonce into 16‑byte “HChaCha20” input + 8‑byte tail.</li>
+    <li>Run HChaCha20 (10 double‑rounds) to derive a 32‑byte subkey.</li>
+    <li>Form a 12‑byte ChaCha20 nonce = 4 zeros ∥ 8‑byte tail.</li>
+    <li>Counter 0 generates the Poly1305 key; counters 1… encrypt each 64‑byte block.</li>
+  </ol>
+
+  <h3>3. Poly1305</h3>
+  <ul>
+    <li>One‑time key = first 16 bytes of ChaCha20<sub>block 0</sub>.</li>
+    <li>MAC data = AAD ∥ ciphertext ∥ padding ∥ len(AAD) ∥ len(ciphertext).</li>
+    <li>Uses 128‑bit arithmetic mod (2<sup>128</sup>−5) with proper clamping.</li>
+    <li>Produces a 16‑byte tag appended after each chunk’s ciphertext.</li>
+  </ul>
+
+  <h3>4. Chunked AEAD I/O</h3>
+  <ul>
+    <li>Processes data in 64 KiB chunks.</li>
+    <li>Each chunk uses a fresh nonce (incremented big‑endian).</li>
+    <li>Encrypt: header → for each chunk write <code>ciphertext ∥ tag</code>.</li>
+    <li>Decrypt: read header → for each chunk read <code>ciphertext+tag</code>, verify tag, write plaintext.</li>
+  </ul>
+
+  <h2>Hardening & Security Enhancements</h2>
+  <h3>A. Zeroization of Secrets</h3>
+  <p>
+    After use, the 32‑byte file key is overwritten in memory:
+  </p>
+  <pre><code>// zeroize module
+for byte in &mut key_buffer {
+    unsafe { ptr::write_volatile(byte, 0) };
+}
+compiler_fence(SeqCst);
+  </code></pre>
+
+  <h3>B. Constant‑Time Tag Comparison</h3>
+  <p>
+    To prevent timing attacks, 16‑byte Poly1305 tags are compared without early exit:
+  </p>
+  <pre><code>fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    let mut diff = 0;
+    for i in 0..a.len() { diff |= a[i] ^ b[i]; }
+    diff == 0
+}</code></pre>
+
+  <h3>C. Minimal Unsafe Scope</h3>
+  <ul>
+    <li><code>unsafe</code> is only used for writing volatile zeroes (zeroization) and FFI RNG.</li>
+    <li>All core crypto (ChaCha20, Poly1305, HChaCha20) is implemented in safe Rust.</li>
+  </ul>
+
+  <h3>D. Atomic File Replacement</h3>
+  <p>
+    Writes to <code><em>file</em>.tmp</code> first, then:
+  </p>
+  <pre><code>if rename(tmp, file).is_err() {
+    remove_file(file)?;
+    rename(tmp, file)?;
+}</code></pre>
+  <p>Ensures no partial or corrupt output on crash.</p>
+
+  <h2>Security Notes & Best Practices</h2>
+  <ul>
+    <li>Run known test vectors (e.g. libsodium’s) to validate your build.</li>
+    <li>Do not reuse the same key for massive volumes; rotate per file or per threshold.</li>
+    <li>Optionally include metadata in AAD to bind filenames or timestamps.</li>
+  </ul>
+
+  <h2>Building & Linking</h2>
+  <pre><code>git clone https://…/xchacha20-cli.git
+cd xchacha20-cli
+cargo build --release
+  </code></pre>
+  <p>On Windows, ensure <code>bcrypt.lib</code> is in your linker path. On Unix, no extra deps are needed.</p>
+
+  <footer>
+    <p>&copy; 2025 Pure‑Rust Crypto CLI — Secure & Self‑Contained</p>
+  </footer>
+</body>
+</html>

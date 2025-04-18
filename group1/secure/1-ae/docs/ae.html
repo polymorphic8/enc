@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>XAE - AES-256-GCM-SIV File Encryptor/Decryptor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+            line-height: 1.6;
+        }
+
+        code {
+            background-color: #f4f4f4;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        pre {
+            background-color: #f4f4f4;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        h1, h2, h3 {
+            margin-top: 2rem;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+        }
+
+        hr {
+            margin: 2rem 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>XAE - AES-256-GCM-SIV File Encryptor/Decryptor</h1>
+
+    <p>
+        <strong>XAE</strong> is a command-line tool for encrypting and decrypting files using the
+        <a href="https://docs.rs/aes-gcm-siv/latest/aes_gcm_siv/" target="_blank">AES-256-GCM-SIV</a> authenticated encryption scheme.
+        It performs in-place encryption and decryption by creating a temporary file, then renaming it to the original file name once operations are complete. 
+    </p>
+
+    <h2>Key Features</h2>
+    <ul>
+        <li>Uses AES-256-GCM-SIV, an authenticated encryption scheme with a 256-bit (32-byte) key.</li>
+        <li>Detects whether a file is already encrypted by checking for a unique <em>magic header</em> (<code>MYAESGCM</code>).</li>
+        <li>Performs atomic file updates to avoid corruption (via a temporary file swap).</li>
+        <li>Suitable for securely protecting file contents with minimal overhead.</li>
+    </ul>
+
+    <hr>
+
+    <h2>Project Structure</h2>
+    <p>
+        The Cargo.toml file includes dependencies on:
+    </p>
+    <ul>
+        <li><code>aes-gcm-siv</code>: for encryption/decryption</li>
+        <li><code>rand</code>: for generating random nonces</li>
+        <li><code>tempfile</code>: for creating temporary files in a secure manner</li>
+        <li><code>anyhow</code>: for simplified error handling</li>
+    </ul>
+
+    <pre>
+[package]
+name = "xae"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+aes-gcm-siv = "0.10"
+rand = "0.8"
+tempfile = "3.6"
+anyhow = "1"
+    </pre>
+
+    <hr>
+
+    <h2>How It Works</h2>
+    <ol>
+        <li><strong>Key Loading</strong>: The application looks for a file named <code>1.key</code> in the same directory as the executable. This file must contain exactly 32 bytes for the AES-256 key.</li>
+        <li><strong>Magic Header Check</strong>: The program reads the target file and checks if it starts with the bytes <code>MYAESGCM</code>. If it does, it will treat the file as encrypted; otherwise, it will treat the file as plaintext to be encrypted.</li>
+        <li><strong>Encryption</strong>:
+            <ul>
+                <li>A 12-byte random nonce is generated using <code>OsRng</code>.</li>
+                <li>The plaintext is encrypted using AES-256-GCM-SIV with the provided key and the generated nonce.</li>
+                <li>The encrypted file is written in the format: <code>[MAGIC_HEADER | NONCE | CIPHERTEXT]</code>.</li>
+            </ul>
+        </li>
+        <li><strong>Decryption</strong>:
+            <ul>
+                <li>If the file is recognized as encrypted, the <code>MYAESGCM</code> header is stripped.</li>
+                <li>The next 12 bytes (the nonce) are extracted.</li>
+                <li>The remaining ciphertext is decrypted using the loaded AES key and the extracted nonce.</li>
+                <li>The decrypted plaintext overwrites the original file content.</li>
+            </ul>
+        </li>
+        <li><strong>Atomic File Overwrite</strong>:
+            <ul>
+                <li>For both encryption and decryption, the output is written to a temporary file using <code>tempfile</code>.</li>
+                <li>Once the operation is complete, the temporary file is renamed to replace the original file, ensuring an atomic swap.</li>
+            </ul>
+        </li>
+    </ol>
+
+    <hr>
+
+    <h2>Usage</h2>
+    <p>
+        <strong>Prerequisites</strong>: You will need Rust (and Cargo) installed to build the application. You also need a valid 32-byte key file named <code>1.key</code> in the same directory as the compiled binary. This key must be kept secret.
+    </p>
+
+    <h3>1. Create a 32-byte key</h3>
+    <pre><code>head -c 32 /dev/urandom > 1.key</code></pre>
+    <p>(on Linux/macOS, for example)</p>
+
+    <h3>2. Build the project</h3>
+    <pre><code>cargo build --release</code></pre>
+    <p>The resulting binary will usually be found in <code>target/release/xae</code> (or <code>xae.exe</code> on Windows).</p>
+
+    <h3>3. Run the tool</h3>
+    <pre><code>./ae &lt;file_path&gt;</code></pre>
+    <ul>
+        <li>If <code>&lt;file_path&gt;</code> is not encrypted (i.e., missing the <code>MYAESGCM</code> header), <code>xae</code> will encrypt it in place.</li>
+        <li>If <code>&lt;file_path&gt;</code> is encrypted (i.e., starts with the <code>MYAESGCM</code> header), <code>xae</code> will decrypt it in place.</li>
+    </ul>
+
+    <p>
+        That's it! The file will be overwritten atomically with either encrypted or decrypted content, depending on its initial state.
+    </p>
+
+    <hr>
+
+    <h2>Security Considerations</h2>
+    <ul>
+        <li><strong>Key Management</strong>: Ensure that your <code>1.key</code> file is protected, because anyone with access to this key can decrypt files or encrypt/overwrite them.</li>
+        <li><strong>Integrity</strong>: AES-GCM-SIV provides both confidentiality and integrity. If the ciphertext or associated data is tampered with, decryption will fail.</li>
+        <li><strong>Backups</strong>: Keep a secure backup of your key. If the key is lost, decrypting your files will be impossible.</li>
+    </ul>
+
+    <hr>
+
+    <h2>Example Code Reference</h2>
+    <pre><code>// Partial excerpt of the main logic:
+
+use aes_gcm_siv::aead::{{Aead, NewAead}};
+use aes_gcm_siv::{{Aes256GcmSiv, Nonce}};
+use rand::rngs::OsRng;
+use rand::RngCore;
+
+// Magic header to identify files encrypted by XAE
+const MAGIC_HEADER: &[u8] = b"MYAESGCM";
+const NONCE_SIZE: usize = 12;
+
+fn main() -> Result<()> {
+    // ... Code for reading input file path ...
+    // ... Loading 32-byte key from 1.key ...
+
+    let cipher = Aes256GcmSiv::new_from_slice(&key_bytes)?;
+
+    // Read file data
+    let mut file_data = fs::read(&file_path)?;
+
+    // Check if file is already encrypted
+    if file_data.starts_with(MAGIC_HEADER) {
+        // Decrypt
+        file_data.drain(0..MAGIC_HEADER.len());
+        let nonce_bytes = file_data.drain(0..NONCE_SIZE).collect::<Vec&lt;u8&gt;>();
+        let nonce = Nonce::from_slice(&nonce_bytes);
+        let decrypted = cipher.decrypt(nonce, file_data.as_ref())?;
+        // Write decrypted data back
+    } else {
+        // Encrypt
+        let mut nonce_bytes = [0u8; NONCE_SIZE];
+        OsRng.fill_bytes(&mut nonce_bytes);
+        let nonce = Nonce::from_slice(&nonce_bytes);
+        let ciphertext = cipher.encrypt(nonce, file_data.as_ref())?;
+        // Write MAGIC_HEADER, nonce, and ciphertext back
+    }
+
+    Ok(())
+}
+    </code></pre>
+
+    <p>
+        For the full code, please review the actual <code>main.rs</code> in this repository.
+    </p>
+
+    <hr>
+
+    <h2>License and Contributions</h2>
+    <p>
+        You may use and modify this project freely. Contributions and suggestions are welcome!
+    </p>
+
+    <p style="text-align: center; margin-top: 3rem;">
+        <em>&copy; 2025 Your Name or Organization</em>
+    </p>
+</body>
+</html>
+

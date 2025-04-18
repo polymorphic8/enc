@@ -1,0 +1,13 @@
+[package]
+name = "xcrypt-cli"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+# Cryptography
+chacha20poly1305 = "0.10"
+argon2 = "0.5"
+zeroize = "1.8"
+rand = "0.8"            # <-- Added rand crate
+rpassword = "7.3.1"     # This is the version you're using
+

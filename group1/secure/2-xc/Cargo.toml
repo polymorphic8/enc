@@ -1,0 +1,15 @@
+# Cargo.toml
+
+[package]
+name = "xc"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+# We will use the chacha20poly1305 crate
+chacha20poly1305 = "0.10"
+rand = "0.8"
+tempfile = "3.6"
+anyhow = "1"
+
+

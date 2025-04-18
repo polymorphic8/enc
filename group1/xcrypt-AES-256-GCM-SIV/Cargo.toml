@@ -1,0 +1,12 @@
+[package]
+name = "xcrypt-gcm-siv"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aes-gcm-siv = { version = "0.10", features = ["aes"] }
+argon2 = "0.5"
+rand = "0.8"
+rpassword = "7.3.1"
+zeroize = "1.8"
+

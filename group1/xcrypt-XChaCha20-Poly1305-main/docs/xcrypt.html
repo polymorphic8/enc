@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XCrypt CLI - Secure File Encryption</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 40px; }
+        h1, h2, h3 { color: #333; }
+        code { background: #f4f4f4; padding: 2px 4px; border-radius: 4px; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .container { max-width: 800px; margin: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>XCrypt CLI - Secure File Encryption</h1>
+        <p><strong>XCrypt CLI</strong> is a high-security file encryption tool built in Rust. It ensures data protection with XChaCha20-Poly1305 authenticated encryption, Argon2id key derivation, and memory zeroization.</p>
+
+        <h2>Features</h2>
+        <ul>
+            <li><strong>Strong Encryption:</strong> Uses XChaCha20-Poly1305 (AEAD) for confidentiality and integrity.</li>
+            <li><strong>Secure Key Derivation:</strong> Uses Argon2id with strong parameters to derive encryption keys.</li>
+            <li><strong>Password Protection:</strong> Password input is hidden using the <code>rpassword</code> crate.</li>
+            <li><strong>Memory Safety:</strong> Sensitive data is securely erased from RAM using <code>zeroize</code>.</li>
+            <li><strong>Atomic File Operations:</strong> Prevents data loss by using temporary files before overwriting.</li>
+            <li><strong>Automatic Encryption/Decryption:</strong> Uses a magic header to detect encryption state.</li>
+            <li><strong>Security-focused:</strong> Single-threaded for reliability, operates only in the executable's directory.</li>
+            <li><strong>Supports Large Files:</strong> Handles files up to 5GB entirely in memory.</li>
+        </ul>
+
+        <h2>Installation</h2>
+        <p>Ensure you have Rust installed. Then, compile the program with:</p>
+        <pre><code>cargo build --release</code></pre>
+        <p>The executable will be in the <code>target/release/</code> directory.</p>
+
+        <h2>Usage</h2>
+        <p>Encrypt or decrypt a file by running:</p>
+        <pre><code>./xcrypt &lt;filename&gt;</code></pre>
+        <p>The tool detects whether the file is encrypted and asks for the appropriate password.</p>
+
+        <h2>Technical Details</h2>
+        <ul>
+            <li><strong>Encryption Algorithm:</strong> XChaCha20-Poly1305 (256-bit key, 24-byte nonce).</li>
+            <li><strong>Key Derivation:</strong> Argon2id (64 MiB memory, 3 iterations, 1 thread, 16-byte salt).</li>
+            <li><strong>File Format:</strong> 8-byte magic header + 16-byte salt + 24-byte nonce + ciphertext.</li>
+            <li><strong>Authentication:</strong> Poly1305 MAC ensures integrity.</li>
+            <li><strong>File Safety:</strong> Encryption/decryption is atomic to prevent corruption.</li>
+            <li><strong>Memory Safety:</strong> Passwords and keys are wiped immediately after use.</li>
+        </ul>
+
+        <h2>Security Considerations</h2>
+        <ul>
+            <li>Never use weak passwords. A long, random passphrase is recommended.</li>
+            <li>Do not store the same password in multiple locations.</li>
+            <li>The tool operates only in the executable's directory for security reasons.</li>
+            <li>If you lose your password, the data is unrecoverable.</li>
+        </ul>
+
+        <h2>License</h2>
+        <p>MIT License. Use freely at your own risk.</p>
+
+        <h2>Disclaimer</h2>
+        <p>This tool is designed for security-conscious users. While it implements best practices, use it responsibly and test with non-critical data before encrypting important files.</p>
+    </div>
+</body>
+</html>
+

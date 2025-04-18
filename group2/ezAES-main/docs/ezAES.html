@@ -1,0 +1,257 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ezaes: AES-256-GCM CLI</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2em;
+      line-height: 1.6;
+    }
+    h1, h2, h3 {
+      color: #2c3e50;
+    }
+    code, pre {
+      background: #f9f9f9;
+      padding: 0.5em;
+      display: block;
+      margin: 0.5em 0;
+    }
+    .filename {
+      color: #8e44ad;
+    }
+    .important {
+      color: #c0392b;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<h1>ezaes: A Simple AES-256-GCM CLI</h1>
+
+<p>
+  <strong>ezaes</strong> is a minimal Rust command-line tool to encrypt and decrypt files
+  <em>in place</em> using AES-256-GCM. It overwrites the input file after
+  successful encryption or decryption, using a temporary file + rename strategy
+  (often considered “atomic” on many filesystems).
+</p>
+
+<hr>
+
+<h2>Features</h2>
+<ul>
+  <li>Uses <strong>AES-256-GCM</strong> for authenticated encryption</li>
+  <li>Generates a unique 12-byte nonce for each encryption</li>
+  <li>Hard-coded, replaceable 256-bit key in <span class="filename">main.rs</span></li>
+  <li>In-place file overwrite via temporary file rename</li>
+</ul>
+
+<hr>
+
+<h2 class="important">Important: Key Management</h2>
+<p>
+  This example has a <strong>hard-coded key</strong> in <code>main.rs</code>, which is
+  <em>not recommended</em> for production or handling sensitive data.
+  In real-world usage, load keys from environment variables,
+  user input, or a secure vault.
+</p>
+
+<hr>
+
+<h2>Installation</h2>
+<ol>
+  <li>
+    <p>Install <a href="https://www.rust-lang.org/tools/install" target="_blank">Rust</a> (if you haven’t already).</p>
+  </li>
+  <li>
+    <p>Clone or download this repository:</p>
+    <pre><code>git clone https://github.com/your-username/ezaes.git
+cd ezaes</code></pre>
+  </li>
+  <li>
+    <p>Open <span class="filename">Cargo.toml</span> and make sure you have:</p>
+    <pre><code>[dependencies]
+aes-gcm = "0.10.3"
+rand = "0.8"</code></pre>
+  </li>
+  <li>
+    <p>Update <span class="filename">main.rs</span> to set your own 32-byte key if desired:</p>
+    <pre><code>// Example (do not use in production):
+let key_bytes: [u8; 32] = [
+  0x00, 0x01, 0x02, 0x03,
+  0x04, 0x05, 0x06, 0x07,
+  ...
+];</code></pre>
+  </li>
+  <li>
+    <p>Build in release mode:</p>
+    <pre><code>cargo build --release</code></pre>
+    <p>The compiled binary will be in <code>target/release/</code>.</p>
+  </li>
+</ol>
+
+<hr>
+
+<h2>Usage</h2>
+<p>
+  The tool takes two command-line arguments:
+</p>
+<ul>
+  <li><code>--E &lt;filename&gt;</code> to encrypt the file in place</li>
+  <li><code>--D &lt;filename&gt;</code> to decrypt the file in place</li>
+</ul>
+
+<p>Examples:</p>
+<pre><code># Encrypt a file
+./ezaes --E mydata.txt
+
+# Now mydata.txt is overwritten with the encrypted content.
+
+# Decrypt the same file
+./ezaes --D mydata.txt
+
+# mydata.txt is restored to its original plaintext.
+</code></pre>
+
+<p>
+  Internally, the app:
+</p>
+<ol>
+  <li>Reads the entire file content into memory.</li>
+  <li>Either encrypts (nonce + ciphertext) or decrypts.</li>
+  <li>Writes the result to a temporary file named <code>mydata.tmp</code>.</li>
+  <li>Removes the original file, then renames <code>mydata.tmp</code> back to <code>mydata.txt</code>.</li>
+</ol>
+
+<hr>
+
+<h2>Sample <code>main.rs</code></h2>
+<pre><code>use aes_gcm::aead::{Aead, KeyInit, generic_array::GenericArray};
+use aes_gcm::Aes256Gcm;
+use rand::RngCore;
+use std::env;
+use std::fs;
+use std::path::PathBuf;
+use std::process;
+
+fn build_temp_filename(original: &str) -> PathBuf {
+    let mut path = PathBuf::from(original);
+    path.set_extension("tmp");
+    path
+}
+
+fn main() {
+    // Hard-coded 32-byte AES key (Replace for your real usage)
+    let key_bytes: [u8; 32] = [
+        0x00, 0x01, 0x02, 0x03,
+        0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B,
+        0x0C, 0x0D, 0x0E, 0x0F,
+        0x10, 0x11, 0x12, 0x13,
+        0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1A, 0x1B,
+        0x1C, 0x1D, 0x1E, 0x1F
+    ];
+
+    // AES-256-GCM setup
+    let key = GenericArray::from_slice(&key_bytes);
+    let cipher = Aes256Gcm::new(key);
+
+    // Arguments
+    let args: Vec&lt;String&gt; = env::args().collect();
+    if args.len() != 3 {
+        eprintln!("Usage: {} --E|--D &lt;filename&gt;", args[0]);
+        process::exit(1);
+    }
+
+    let mode = &args[1];
+    let filename = &args[2];
+
+    // Read file
+    let file_content = fs::read(filename).unwrap_or_else(|_| {
+        eprintln!("Failed to read file: {}", filename);
+        process::exit(1);
+    });
+
+    match mode.as_str() {
+        "--E" => {
+            // Encrypt
+            let mut rng = rand::thread_rng();
+            let mut nonce_bytes = [0u8; 12];
+            rng.fill_bytes(&mut nonce_bytes);
+            let nonce = GenericArray::from_slice(&nonce_bytes);
+
+            let ciphertext = cipher.encrypt(nonce, file_content.as_ref())
+                .expect("Encryption failure!");
+
+            let mut output = Vec::with_capacity(12 + ciphertext.len());
+            output.extend_from_slice(&nonce_bytes);
+            output.extend_from_slice(&ciphertext);
+
+            let temp_path = build_temp_filename(filename);
+            fs::write(&temp_path, &output).unwrap_or_else(|_| {
+                eprintln!("Failed to write temp file: {:?}", temp_path);
+                process::exit(1);
+            });
+
+            fs::remove_file(filename).ok();
+            fs::rename(&temp_path, filename).unwrap_or_else(|_| {
+                eprintln!("Failed to rename temp file to {:?}", filename);
+                process::exit(1);
+            });
+
+            println!("File encrypted (overwritten): {}", filename);
+        }
+        "--D" => {
+            // Decrypt
+            if file_content.len() &lt; 12 + 16 {
+                eprintln!("File too short to be valid AES-GCM data");
+                process::exit(1);
+            }
+
+            let nonce_bytes = &file_content[..12];
+            let ciphertext = &file_content[12..];
+            let nonce = GenericArray::from_slice(nonce_bytes);
+
+            let plaintext = cipher.decrypt(nonce, ciphertext.as_ref())
+                .expect("Decryption failure!");
+
+            let temp_path = build_temp_filename(filename);
+            fs::write(&temp_path, &plaintext).unwrap_or_else(|_| {
+                eprintln!("Failed to write temp file: {:?}", temp_path);
+                process::exit(1);
+            });
+
+            fs::remove_file(filename).ok();
+            fs::rename(&temp_path, filename).unwrap_or_else(|_| {
+                eprintln!("Failed to rename temp file to {:?}", filename);
+                process::exit(1);
+            });
+
+            println!("File decrypted (overwritten): {}", filename);
+        }
+        _ => {
+            eprintln!("Unknown mode '{}'. Use --E or --D.", mode);
+            process::exit(1);
+        }
+    }
+}
+</code></pre>
+
+<hr>
+
+<h2>License &amp; Disclaimer</h2>
+<p>
+  This example is shared as-is, under no official license, and is only meant to
+  demonstrate basic AES-256-GCM usage in Rust. For any production needs, please
+  ensure you follow best practices and handle keys safely.
+</p>
+
+<p><em>Enjoy your simple AES-256-GCM CLI!</em></p>
+
+</body>
+</html>
+

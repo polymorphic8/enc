@@ -1,0 +1,15 @@
+
+./chacha20_cli --keygen "mysecretpassword"
+
+
+./chacha20_cli --E api.html out.html
+
+./chacha20_cli --D out.html decrypted.html
+
+
+
+Atomic In-Place Overwrite
+
+./chacha20_cli --over api.html --E
+
+./chacha20_cli --over api.html --D

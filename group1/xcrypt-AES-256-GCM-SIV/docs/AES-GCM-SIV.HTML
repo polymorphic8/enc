@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>xcrypt-gcm-siv README</title>
+    <style>
+        body {
+            margin: 2em;
+            font-family: sans-serif;
+            line-height: 1.5;
+            background-color: #fefefe;
+            color: #333;
+        }
+
+        h1, h2, h3 {
+            color: #1a4c8b;
+        }
+
+        code, pre {
+            background-color: #f5f2f0;
+            color: #c7254e;
+            padding: 0.2em;
+            font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+        }
+
+        pre {
+            padding: 1em;
+            margin: 1em 0;
+        }
+
+        .note {
+            background: #fffae6;
+            border-left: 4px solid #ffc107;
+            padding: 1em;
+            margin: 1em 0;
+        }
+
+        .warning {
+            background: #ffe8e6;
+            border-left: 4px solid #e60000;
+            padding: 1em;
+            margin: 1em 0;
+        }
+
+        .commands {
+            background: #f8f8f8;
+            padding: 1em;
+            margin: 1em 0;
+            border-left: 4px solid #ccc;
+        }
+
+        ul {
+            margin-left: 1.5em;
+        }
+    </style>
+</head>
+<body>
+
+<h1>xcrypt-gcm-siv</h1>
+
+<p>
+    <strong>xcrypt-gcm-siv</strong> is a simple command-line utility to encrypt or decrypt files 
+    using <strong>AES-256-GCM-SIV</strong> (Authenticated Encryption) in Rust. It employs 
+    <strong>Argon2id</strong> for secure key derivation from a user-supplied password and writes 
+    files atomically to avoid corruption. 
+</p>
+
+<div class="note">
+  <p><strong>Key Features:</strong></p>
+  <ul>
+    <li>AES-256 in GCM-SIV mode (nonce misuse-resistant)</li>
+    <li>Strong Argon2id key derivation (64 MiB memory, 3 passes)</li>
+    <li>Atomic file renaming to prevent data loss</li>
+    <li>CLI-based usage (encrypt/decrypt auto-detect)</li>
+</ul>
+</div>
+
+<hr />
+
+<h2>Installation</h2>
+
+<ol>
+  <li>
+    <strong>Install Rust</strong> (if not already): 
+    <a href="https://rustup.rs/">https://rustup.rs/</a>
+  </li>
+  <li>
+    <strong>Clone or download</strong> the project to your local system:
+    <pre><code>git clone https://github.com/your-username/xcrypt-gcm-siv.git</code></pre>
+    or extract the source code into a local directory.
+  </li>
+  <li>
+    <strong>Build</strong> the project from the main directory:
+    <pre><code>cd xcrypt-gcm-siv
+cargo build --release</code></pre>
+    The compiled binary will be in <code>target/release/xcrypt-gcm-siv</code>.
+  </li>
+</ol>
+
+<h2>Usage</h2>
+
+<p>
+  Run <code>xcrypt-gcm-siv &lt;FILE&gt;</code> to encrypt or decrypt the file. It automatically 
+  detects whether a file is encrypted by checking the magic header. If the file is:
+</p>
+
+<ul>
+  <li><strong>Not encrypted</strong>, the tool will prompt for a password (and confirmation) 
+      and encrypt the file in-place.</li>
+  <li><strong>Encrypted</strong>, the tool will prompt for the password and decrypt the file 
+      in-place.</li>
+</ul>
+
+<div class="commands">
+<code>$ ./xcrypt-gcm-siv &lt;FILE&gt;</code>
+</div>
+
+<p>
+  During encryption, the utility:
+</p>
+<ol>
+  <li>Prompts for a password and confirms it.</li>
+  <li>Derives a 256-bit key using Argon2id (with a random 16-byte salt).</li>
+  <li>Generates a random 12-byte nonce (GCM-SIV nonce).</li>
+  <li>Encrypts the file data (appending a 16-byte authentication tag).</li>
+  <li>Writes a temporary file containing a magic header, salt, nonce, and ciphertext.</li>
+  <li>Atomically renames the temporary file over the original file.</li>
+</ol>
+
+<p>
+  During decryption, the utility:
+</p>
+<ol>
+  <li>Reads the magic header, salt, and nonce from the file.</li>
+  <li>Prompts for a password to derive the 256-bit key.</li>
+  <li>Decrypts the ciphertext (validates the 16-byte authentication tag).</li>
+  <li>Atomically writes the plaintext back to the original file location.</li>
+</ol>
+
+<h2>Example</h2>
+
+<pre><code># Encrypt a file named 'secret.txt'
+$ ./xcrypt-gcm-siv secret.txt
+Enter password to encrypt:
+Confirm password:
+
+# The 'secret.txt' file is now encrypted in place
+
+# Decrypt the same file
+$ ./xcrypt-gcm-siv secret.txt
+Enter password to decrypt:
+
+# 'secret.txt' is restored to its original plaintext form
+</code></pre>
+
+<div class="warning">
+  <p><strong>Warning:</strong> Remember your password or you risk permanent data loss. 
+  This tool uses strong encryption and there is no backdoor.</p>
+</div>
+
+<hr />
+
+<h2>Security Details</h2>
+<p>
+  <ul>
+    <li><strong>AES-256-GCM-SIV</strong>: Nonce misuse-resistant AEAD. The tool still uses a 
+        randomly generated nonce per encryption operation for best practice.</li>
+    <li><strong>Argon2id</strong>: Key derivation with 64 MiB of memory and 3 iterations 
+        (memory-hard for password cracking resistance).</li>
+    <li><strong>Zeroing of sensitive data</strong>: The code uses 
+        <code>zeroize</code> to clear plaintext and keys in memory when no longer needed.</li>
+    <li><strong>Atomic updates</strong>: The encryption/decryption process writes to a temporary 
+        file, then renames over the original file to prevent partial writes on crashes or power 
+        failures.</li>
+  </ul>
+</p>
+
+<h2>License</h2>
+<p>
+  This project is available under your preferred license. Typically, users adopt 
+  <a href="https://opensource.org/licenses/MIT">MIT</a> or <a href="https://opensource.org/licenses/Apache-2.0">Apache-2.0</a>.
+</p>
+
+</body>
+</html>
+

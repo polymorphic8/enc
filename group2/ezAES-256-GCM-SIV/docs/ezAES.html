@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ezaes README</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 2rem; max-width: 800px; }
+        h1, h2 { color: #333; }
+        pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
+        code { font-family: monospace; background: #eef; padding: 0.2rem 0.4rem; }
+        section { margin-bottom: 2rem; }
+        .footer { font-size: 0.9rem; color: #666; border-top: 1px solid #ddd; padding-top: 1rem; }
+    </style>
+</head>
+<body>
+    <h1>ezaes</h1>
+    <p><strong>Version:</strong> 0.1.0<br>
+       <strong>Edition:</strong> 2021</p>
+
+    <section>
+        <h2>Overview</h2>
+        <p><code>ezaes</code> is a simple command-line utility for encrypting and decrypting files using <strong>AES-256-GCM-SIV</strong>.</p>
+        <p>It embeds a magic header in each encrypted file so it automatically detects whether to encrypt or decrypt on each run — no flags needed.</p>
+    </section>
+
+    <section>
+        <h2>Features</h2>
+        <ul>
+            <li>AES-256 key size for strong security</li>
+            <li>Galois/Counter Mode - SIV (SIV = nonce-misuse resistant)</li>
+            <li>Automatic mode detection via a magic header <code>AES256-GCM-SIV</code></li>
+            <li>Safe in-place file overwrite (writes a <code>.tmp</code> and renames)</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>Installation</h2>
+        <p>Ensure you have <a href="https://www.rust-lang.org/">Rust</a> installed (Rust 1.56+). Then clone and build:</p>
+        <pre><code>git clone https://github.com/yourusername/ezaes.git
+cd ezaes
+cargo build --release</code></pre>
+        <p>The binary will be at <code>target/release/ezaes</code>.</p>
+    </section>
+
+    <section>
+        <h2>Usage</h2>
+        <p>Run the tool on any file. If the file is <em>unencrypted</em>, it will encrypt it; if it already contains the magic header, it will decrypt it.</p>
+        <pre><code># Encrypts data.bin → data.bin
+./target/release/ezaes data.bin
+
+# Decrypts data.bin (if previously encrypted)
+./target/release/ezaes data.bin</code></pre>
+    </section>
+
+    <section>
+        <h2>Configuration</h2>
+        <p>By default, <code>ezaes</code> uses a hard-coded 32-byte key in <code>src/main.rs</code>. <strong>Replace this with your own secure key!</strong></p>
+        <pre><code>let key_bytes: [u8; 32] = [
+    0x00, 0x01, 0x02, /* … fill with your own random bytes … */
+];</code></pre>
+    </section>
+
+    <section>
+        <h2>Security Considerations</h2>
+        <ul>
+            <li>Store your key securely (e.g., environment variables or key management).</li>
+            <li>Avoid reusing nonces. The SIV mode helps mitigate but best practice is to use fresh nonces.</li>
+            <li>This tool is not suitable for streaming large data; it loads entire file into memory.</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>License</h2>
+        <p>MIT License — see <code>LICENSE</code> file for details.</p>
+    </section>
+
+    <div class="footer">
+        <p>&copy; 2025 Your Name. Built with Rust and <a href="https://crates.io/crates/aes-gcm-siv">aes-gcm-siv</a>.</p>
+    </div>
+</body>
+</html>
+

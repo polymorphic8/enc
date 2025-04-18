@@ -1,0 +1,13 @@
+[package]
+name = "keygen"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+argon2 = "0.4"
+rpassword = "5"
+zeroize = "1.5"
+
+# Only needed if you want to keep Clap for other reasons:
+# clap = { version = "4.5.32", features = ["derive"] }
+

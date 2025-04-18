@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>XChaCha20Poly1305 File Encryption - README</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 1rem auto;
+      max-width: 800px;
+      line-height: 1.6;
+    }
+    code, pre {
+      background-color: #f8f8f8;
+      padding: 4px;
+      font-size: 0.95em;
+    }
+  </style>
+</head>
+<body>
+
+<h1>XChaCha20Poly1305 File Encryption</h1>
+<p>
+  This application encrypts and decrypts individual files using the 
+  <strong>XChaCha20-Poly1305</strong> algorithm. If a file is not encrypted, the 
+  application encrypts it. If it is already encrypted (as indicated by a unique 
+  "magic header"), the application decrypts it.
+</p>
+
+<hr>
+
+<h2>Key File</h2>
+<p>
+  The program expects a 32-byte key file named <code>2.key</code> located in the 
+  same directory as the compiled binary. If the key file is missing or is not 
+  exactly 32 bytes, the program will exit with an error.
+</p>
+<p>
+  To generate a random 32-byte key (Linux/macOS example):
+</p>
+<pre><code>dd if=/dev/urandom of=2.key bs=32 count=1</code></pre>
+<p>
+  Alternatively, you can use other cryptographic tools (e.g., <code>openssl rand</code>) 
+  to generate a random key.
+</p>
+
+<hr>
+
+<h2>Project Structure</h2>
+<ul>
+  <li><strong>Cargo.toml</strong>: Rust project configuration, including dependencies.</li>
+  <li><strong>src/main.rs</strong>: Main application source code.</li>
+  <li><strong>2.key</strong>: The 32-byte key file.</li>
+</ul>
+
+<hr>
+
+<h2>Building the Application</h2>
+<p>
+  Ensure you have <a href="https://www.rust-lang.org/tools/install" target="_blank">
+  Rust and Cargo installed</a>. Then in your project directory, run:
+</p>
+<pre><code>cargo build --release
+</code></pre>
+<p>
+  The compiled binary will be located in <code>target/release</code>.
+</p>
+
+<hr>
+
+<h2>Usage</h2>
+<p>
+  Once built, place or confirm that <code>2.key</code> is in the same directory as 
+  the compiled binary. Then run the application with:
+</p>
+<pre><code>./xc &lt;file_path&gt;</code></pre>
+<ul>
+  <li>
+    If <code>&lt;file_path&gt;</code> is a regular (unencrypted) file, it will be
+    <strong>encrypted</strong> using XChaCha20-Poly1305, and a magic header 
+    (<code>MYXCHACHA</code>) plus a 24-byte nonce will be prepended to the file.
+  </li>
+  <li>
+    If <code>&lt;file_path&gt;</code> has the magic header, the application will 
+    <strong>decrypt</strong> it, removing the header and restoring the original data.
+  </li>
+</ul>
+
+<hr>
+
+<h2>How It Works</h2>
+<ol>
+  <li>
+    <strong>Check for Encryption:</strong> The code reads the file and checks if
+    it begins with the magic header <code>MYXCHACHA</code>.
+  </li>
+  <li>
+    <strong>Encrypt / Decrypt:</strong> If not encrypted, the data is encrypted 
+    with a new 24-byte nonce and the XChaCha20-Poly1305 cipher using the provided
+    32-byte key. If already encrypted, it attempts to decrypt with that nonce.
+  </li>
+  <li>
+    <strong>Atomic Write:</strong> The application uses a temporary file to write 
+    the updated (encrypted or decrypted) contents, then renames it back to the 
+    original file path to reduce the risk of data corruption.
+  </li>
+</ol>
+
+<hr>
+
+<h2>Security Notice</h2>
+<p>
+  While this application demonstrates basic file encryption using a modern AEAD 
+  algorithm, it is <em>not</em> a complete security solution. Considerations such 
+  as key management, key rotation, secure deletion, and filesystem leaks (e.g., 
+  file sizes, metadata) are beyond the scope of this demonstration.
+</p>
+
+<hr>
+
+<h2>License</h2>
+<p>
+  This software is provided as-is for educational and demonstration purposes.
+  Please refer to the <code>LICENSE</code> file (if any) in this repository for more details.
+</p>
+
+</body>
+</html>
+

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>chacha20_cli — Secure File Encryption</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      margin: 0 auto;
+      padding: 1em;
+      max-width: 900px;
+    }
+    code, pre {
+      background-color: #f8f8f8;
+      padding: 0.2em 0.4em;
+      border-radius: 4px;
+      font-family: "Courier New", Courier, monospace;
+    }
+    h1, h2, h3 {
+      margin-top: 1.2em;
+    }
+    hr {
+      margin: 2em 0;
+    }
+  </style>
+</head>
+<body>
+
+<h1>chacha20_cli — Secure File Encryption</h1>
+
+<p>
+  <strong>chacha20_cli</strong> is a simple command-line utility for encrypting or decrypting
+  files using <strong>XChaCha20-Poly1305</strong>. It also offers deterministic key generation 
+  using <strong>Argon2</strong>, ensuring that you can reliably regenerate your key file from 
+  a password if needed.
+</p>
+
+<hr />
+
+<h2>Quick Start &amp; Example Usage</h2>
+
+<h3>1. Build and Install</h3>
+<p>
+  This README assumes you have a <code>Rust</code> environment installed 
+  (e.g. via <a href="https://rustup.rs/" target="_blank">rustup</a>). 
+  You can build by cloning the repository and running:
+</p>
+<pre><code>cd chacha20_cli
+cargo build --release
+</code></pre>
+<p>
+  The compiled binary will be in <code>target/release/chacha20_cli</code>.
+</p>
+
+<h3>2. Generate a Key File</h3>
+<p>
+  The tool relies on a 32-byte binary key file named 
+  <code>p.bin</code> in the same directory. You can generate 
+  this key deterministically from a password:
+</p>
+<pre><code>./chacha20_cli --keygen "mysecretpassword"
+</code></pre>
+<p>
+  This will create (or overwrite) a <code>p.bin</code> file. 
+  The exact bytes depend on both your password and a 
+  compile-time SALT you can change in the source code.
+</p>
+
+<h3>3. Encrypt a File</h3>
+<p>
+  Use <code>--E</code> to encrypt:
+</p>
+<pre><code>./chacha20_cli --E input.txt output.enc
+</code></pre>
+<p>
+  The program reads <code>input.txt</code> in memory, encrypts it,
+  and writes <code>output.enc</code> (containing a nonce + ciphertext).
+  The key is loaded from <code>p.bin</code> in the current directory.
+</p>
+
+<h3>4. Decrypt a File</h3>
+<p>
+  Use <code>--D</code> to decrypt:
+</p>
+<pre><code>./chacha20_cli --D output.enc decrypted.txt
+</code></pre>
+<p>
+  This reads <code>output.enc</code> in memory, verifies and decrypts 
+  using the same <code>p.bin</code> key, and saves the plaintext to 
+  <code>decrypted.txt</code>.
+</p>
+
+<h3>5. Atomic In-Place Overwrite</h3>
+<p>
+  If you prefer to encrypt or decrypt a file <em>in-place</em> (so the 
+  original gets replaced atomically by the result), use <code>--over &lt;file&gt;</code>.
+</p>
+<p>
+  <strong>Encrypt In-Place</strong>:
+</p>
+<pre><code>./chacha20_cli --over original.txt --E
+</code></pre>
+<p>
+  <strong>Decrypt In-Place</strong>:
+</p>
+<pre><code>./chacha20_cli --over secret.enc --D
+</code></pre>
+<p>
+  In either case, if <code>--E</code> or <code>--D</code> isn't specified, it defaults
+  to encryption.
+</p>
+
+<hr />
+
+<h2>How the App Works</h2>
+
+<p>
+  <strong>chacha20_cli</strong> is written in Rust and uses the following steps:
+</p>
+
+<ol>
+  <li><strong>Argon2 Key Derivation</strong> (via <code>--keygen</code>):
+    <ul>
+      <li>The user provides a password.</li>
+      <li>An <code>Argon2</code> KDF with default parameters derives a 32-byte key.</li>
+      <li>The derived key is written to <code>p.bin</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Encryption (XChaCha20-Poly1305)</strong>:
+    <ul>
+      <li>
+        When encrypting a file, the app reads the entire file 
+        into memory. 
+      </li>
+      <li>
+        A 24-byte XChaCha20 <em>nonce</em> is randomly generated 
+        and prepended to the output (the ciphertext).
+      </li>
+      <li>
+        <strong>Poly1305</strong> ensures message authentication (i.e., tamper detection).
+      </li>
+    </ul>
+  </li>
+  <li><strong>Decryption</strong>:
+    <ul>
+      <li>
+        Decryption reads the nonce from the first 24 bytes of the input file. 
+      </li>
+      <li>
+        The remaining bytes are decrypted and verified with the same 
+        key from <code>p.bin</code>.
+      </li>
+    </ul>
+  </li>
+  <li><strong>Atomic Overwrites</strong>:
+    <ul>
+      <li>
+        In <em>in-place mode</em>, the app creates a hidden temporary file (e.g. 
+        <code>.somefile.tmp</code>) in the same directory.
+      </li>
+      <li>
+        Once encryption or decryption completes, the temporary file is <code>fsync</code>d 
+        and then <code>rename</code>d over the original (on Unix-like systems, this rename 
+        is atomic).
+      </li>
+    </ul>
+  </li>
+</ol>
+
+<hr />
+
+<h2>Security Considerations</h2>
+
+<p>
+  <strong>XChaCha20-Poly1305</strong> is a modern, high-speed, stream-based cipher 
+  (ChaCha20) combined with an authentication mechanism (Poly1305). This makes it 
+  suitable for encrypting files securely while detecting tampering.
+</p>
+<p>
+  The 24-byte <strong>XChaCha20</strong> nonce is large enough to avoid collisions 
+  or repetition, provided randomness is used properly. Each encryption call 
+  generates a new random nonce.
+</p>
+
+<p>
+  <strong>Argon2</strong> is used for password-based key derivation. It is 
+  memory-hard, which makes brute-force attempts by attackers more expensive. 
+  You can further tune its parameters (time cost, memory cost) in the code 
+  to increase or decrease the derived key’s generation time.
+</p>
+
+<p>
+  <em>However</em>, there are several important notes:
+</p>
+
+<ul>
+  <li>
+    Always keep your <code>p.bin</code> file secret. It contains the raw 
+    encryption key. Anyone with this file can decrypt your data.
+  </li>
+  <li>
+    If you lose <code>p.bin</code>, you cannot recover your encrypted data 
+    unless you can exactly replicate Argon2 with the same password and 
+    compile-time salt. 
+  </li>
+  <li>
+    Renaming files is generally atomic on Unix-like systems, but there are 
+    corner cases on Windows. For best guarantee of atomic operation, use 
+    a filesystem that supports atomic renames.
+  </li>
+  <li>
+    The entire file is read into memory during encryption/decryption. For 
+    very large files, you might need a streaming or chunk-based approach.
+  </li>
+  <li>
+    Change the compile-time <code>SALT</code> (in the Rust source code) if 
+    you want a different Argon2 derivation result for the same password 
+    across different builds.
+  </li>
+</ul>
+
+<hr />
+
+<h2>Configuration</h2>
+
+<p>
+  You can modify several aspects of the program:
+</p>
+
+<ul>
+  <li><strong>Argon2 parameters</strong>: In <code>deterministic_keygen</code>, you can 
+  configure Argon2's <code>time_cost</code>, <code>memory_cost</code>, and <code>parallelism</code> 
+  to increase or decrease key derivation difficulty.</li>
+  <li><strong>Compile-Time Salt</strong>: The constant <code>SALT</code> in <code>main.rs</code> 
+  determines how passwords map to the final 32-byte key. Changing this value 
+  changes the derived key for the same password.</li>
+  <li><strong>File Overwrite Logic</strong>: The in-place mode uses a hidden 
+  <code>.filename.tmp</code> for atomic replacement. You can customize that logic 
+  if needed.</li>
+</ul>
+
+<hr />
+
+<h2>Disclaimer</h2>
+
+<p>
+  While <strong>XChaCha20-Poly1305</strong> and <strong>Argon2</strong> are 
+  generally considered secure for production use, all cryptographic software 
+  requires thorough testing and auditing for your specific use case. 
+  The authors of <em>chacha20_cli</em> are not responsible for any 
+  security or reliability issues arising out of its use.
+</p>
+
+<p>
+  <strong>Always back up your data and your keys.</strong> Any encryption software 
+  can lead to data loss if keys are not managed carefully or if files 
+  are inadvertently corrupted.
+</p>
+
+</body>
+</html>
+
