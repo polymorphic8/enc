@@ -46,7 +46,7 @@ The **Threefish-512** cipher provides:
 
 A **tweakable block cipher** extends a standard block cipher with an additional *tweak* parameter. Encryption becomes:
 
-```
+```text
 C = E_{K,T}(P)
 ```
 
@@ -79,4 +79,5 @@ However, for general interoperability and hardware acceleration, **AES-256** rem
 ## License
 
 MIT License. See `LICENSE` file for details.
+
 
