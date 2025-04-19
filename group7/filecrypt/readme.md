@@ -1,3 +1,7 @@
+
+key.key is a 32 byte key so one can test the app. the key needs to be in same dir as executable. any 32 byte file named key.key will work. 
+
+
 # filecrypt
 
 `filecrypt` is a small, production-grade CLI tool for in-place file encryption and decryption using libsodium’s SecretStream (XChaCha20-Poly1305). It provides atomic overwrites, format versioning, and strict key verification to ensure safety and reliability even for large files.
