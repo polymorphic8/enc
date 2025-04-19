@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Threefish Deep Dive &amp; Comparison</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; margin: 2rem; color: #333; }
+    pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; }
+    code { font-family: Menlo, Monaco, monospace; }
+    h1, h2, h3 { color: #222; }
+    ul, ol { margin-left: 1.5rem; }
+    section { margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>Threefish: Detailed Overview</h1>
+  <section>
+    <p>Threefish is a family of tweakable block ciphers introduced as part of the <strong>SHA-3</strong> competition by Bruce Schneier and colleagues (the Skein team). Its core characteristics are:</p>
+    <ul>
+      <li><strong>Tweakable block cipher:</strong> Each block encryption takes not only a key <em>K</em> but also a non-secret <em>tweak</em> parameter <em>T</em>, allowing domain separation without external modes.</li>
+      <li><strong>Three variants:</strong> Threefish-256, Threefish-512, and Threefish-1024, where the number signifies the block size in bits.</li>
+      <li><strong>Wide block size:</strong> Blocks processed as an array of 64-bit words (4, 8, or 16 words respectively), enabling large-volume CTR-like operations with extremely low collision risk.</li>
+      <li><strong>Key schedule:</strong> Simple key injection at regular rounds, with extended keys derived from the original to mix into the state.</li>
+      <li><strong>ARX design:</strong> Uses only 64-bit additions, bitwise rotations, and XORs—no S‑boxes—leading to high performance on 64-bit CPUs.</li>
+    </ul>
+    <p>Typical use in a CLI tool is as a stream cipher: you fix a random per-file <em>nonce</em> (64 bits) and treat the block index as the second 64-bit tweak. XORing plaintext against the cipher output yields a CTR‑style construction without chaining or IV-handling complexity.</p>
+  </section>
+
+  <h2>Threefish-512 vs Threefish-1024: Security Comparison</h2>
+  <section>
+    <p>Both variants share the same ARX core and round function, but differ in state size and security margin:</p>
+    <ul>
+      <li><strong>Key size:</strong> 512 bits vs 1024 bits → Brute‑force work factor ≈2⁽²⁵⁶⁾ vs 2⁽⁵¹²⁾.</li>
+      <li><strong>Block size:</strong> 512 bits vs 1024 bits → Birthday collision bound around 2⁽²⁵⁶⁾ vs 2⁽⁵¹²⁾ blocks.</li>
+      <li><strong>Structural attacks:</strong> No known practical weaknesses against either; the larger state simply offers more headroom.</li>
+    </ul>
+    <p><em>In practice, Threefish-512 already exceeds any conceivable usage limits; Threefish-1024 is a theoretical “max margin” upgrade at the cost of extra processing.</em></p>
+  </section>
+
+  <h2>Comparison to AES-256-GCM-SIV and XChaCha20-Poly1305</h2>
+  <section>
+    <h3>AES-256-GCM-SIV</h3>
+    <ul>
+      <li><strong>Type:</strong> Authenticated encryption with associated data (AEAD).</li>
+      <li><strong>Key size:</strong> 256 bits.</li>
+      <li><strong>Nonce misuse resistance:</strong> GCM-SIV is nonce-misuse resistant, tolerating repeated nonces without catastrophic tag reuse.</li>
+      <li><strong>Block size:</strong> 128 bits, using CTR internally with GHASH for authentication.</li>
+      <li><strong>Performance:</strong> Hardware-accelerated on AES-NI; high throughput on modern CPUs.</li>
+      <li><strong>Use cases:</strong> Standardized AEAD, widely supported in TLS, disk encryption, secure messaging.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>XChaCha20-Poly1305</h3>
+    <ul>
+      <li><strong>Type:</strong> AEAD using ChaCha20 stream cipher + Poly1305 authenticator.</li>
+      <li><strong>Key size:</strong> 256 bits.</li>
+      <li><strong>Nonce:</strong> 192 bits (XChaCha20), allowing random nonces per message without collision concerns.</li>
+      <li><strong>Misuse resistance:</strong> Better resistance thanks to extended nonce and one-time key derivation.</li>
+      <li><strong>Performance:</strong> Excellent in software on platforms without AES acceleration; constant-time ARX operations.</li>
+      <li><strong>Use cases:</strong> Secure messaging (e.g., libsodium default), VPN tunnels, file encryption in high-level libraries.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Summary</h2>
+    <p>If you need <em>pure CTR-like speed</em> with tweak-based domain separation, Threefish (especially 512) is a solid choice, albeit lacking built-in authentication. For standard AEAD with misused nonces, AES-256-GCM-SIV or XChaCha20-Poly1305 are more practical and widely supported.</p>
+  </section>
+</body>
+</html>
