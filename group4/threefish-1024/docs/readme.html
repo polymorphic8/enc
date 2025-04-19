@@ -9,7 +9,10 @@
     h1, h2, h3 { color: #333; }
     pre { background: #f4f4f4; padding: 1em; overflow-x: auto; }
     code { font-family: monospace; }
-    section { margin-bottom: 2em; }
+    table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+    th, td { border: 1px solid #ccc; padding: 0.5em; text-align: left; }
+    th { background: #f0f0f0; }
+    blockquote { margin: 1em 0; padding: 0.5em 1em; background: #f9f9f9; border-left: 4px solid #ccc; }
   </style>
 </head>
 <body>
@@ -18,11 +21,12 @@
 
   <section>
     <h2>Overview</h2>
-    <p><code>threefish_cli</code> is a command-line utility for in-place file encryption and decryption using the <strong>Threefish-1024</strong> tweakable block cipher in CTR mode. It supports:</p>
+    <p><strong>threefish_cli</strong> is a minimal, high‑security command‑line tool for in‑place file encryption and decryption using the <strong>Threefish‑1024</strong> tweakable block cipher in a CTR‑style mode. It focuses on:</p>
     <ul>
-      <li>Atomic in-place operations: writes to a temporary file and renames it over the original.</li>
-      <li>Simple key management: uses a 128-byte raw key from <code>key.key</code>, with a <code>keygen</code> command to initialize a default key.</li>
-      <li>High performance and large block size: 1024-bit blocks processed in 128-byte chunks.</li>
+      <li><strong>Atomic updates</strong>: encrypt/decrypt to a temporary file, then rename over the original to avoid partial writes.</li>
+      <li><strong>Simple key management</strong>: loads a 128‑byte raw key from <code>key.key</code> (generated externally).</li>
+      <li><strong>Large block size</strong>: 1024‑bit blocks processed in 128‑byte chunks for maximum security margins.</li>
+      <li><strong>Self‑contained headers</strong>: embeds magic, version, and a per‑file nonce for transparent decryption.</li>
     </ul>
   </section>
 
@@ -32,68 +36,96 @@
 cd threefish_cli
 cargo build --release
 cp target/release/threefish_cli /usr/local/bin/</code></pre>
+    <blockquote>
+      <p><strong>Note:</strong> You must generate a 128‑byte random key beforehand (e.g. via <code>openssl rand -out key.key 128</code>) and place it as <code>key.key</code> in the working directory.</p>
+    </blockquote>
   </section>
 
   <section>
     <h2>Usage</h2>
-    <pre><code># Generate a default key (creates key.key)
-threefish_cli keygen
+    <pre><code># Encrypt a file in-place (writes header + ciphertext)
+threefish_cli encrypt path/to/file.bin
 
-# Encrypt a file in-place
-threefish_cli encrypt myfile.txt
-
-# Decrypt the same file
-threefish_cli decrypt myfile.txt</code></pre>
+# Decrypt the same file (reads header + ciphertext)
+threefish_cli decrypt path/to/file.bin</code></pre>
+    <ul>
+      <li><code>encrypt &lt;path&gt;</code>: writes a 13‑byte header (<code>MAGIC|"T1FS"|VERSION|nonce</code>) followed by ciphertext.</li>
+      <li><code>decrypt &lt;path&gt;</code>: reads and verifies the header, then restores plaintext.</li>
+    </ul>
   </section>
 
   <section>
-    <h2>Key and Security</h2>
-    <p>The cipher uses a <strong>128-byte (1024-bit)</strong> key loaded from <code>key.key</code>. You can replace this file with your own randomly generated key if desired.</p>
-    <p>The <strong>Threefish-1024</strong> cipher provides:</p>
+    <h2>File Header Format</h2>
+    <p>Each encrypted file begins with a 13‑byte header:</p>
+    <table>
+      <tr><th>Offset</th><th>Length</th><th>Description</th></tr>
+      <tr><td>0</td><td>4</td><td>ASCII magic: <code>"T1FS"</code></td></tr>
+      <tr><td>4</td><td>1</td><td>Format version (currently <code>0x01</code>)</td></tr>
+      <tr><td>5</td><td>8</td><td>64‑bit little‑endian nonce</td></tr>
+    </table>
+    <p>The header ensures:</p>
     <ul>
-      <li><em>Massive block size</em>: 1024-bit blocks resist birthday attacks far beyond 128-bit ciphers.</li>
-      <li><em>Large key size</em>: up to 1024-bit key, here fixed at 1024 bits for maximum margin.</li>
-      <li><em>Tweakability</em>: per-block tweaks eliminate the need for external chaining modes.</li>
+      <li><strong>Self‑identification</strong>: prevents decrypting random data.</li>
+      <li><strong>Versioning</strong>: future changes remain backward‑compatible.</li>
+      <li><strong>Nonce storage</strong>: required to reconstruct the CTR stream.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Key Handling & Security</h2>
+    <ul>
+      <li>Expects a <strong>128‑byte</strong> (1024‑bit) key in <code>key.key</code>. No built‑in generator—use your own secure source.</li>
+      <li>Uses <strong>Threefish‑1024</strong> with a 128‑byte key and 128‑bit tweak (nonce + block index).</li>
+      <li>After processing, the in‑memory key is zeroized.</li>
+    </ul>
+    <h3>Why Threefish‑1024?</h3>
+    <ul>
+      <li><strong>Massive block size</strong> (1024 bits) resists generic birthday/collision attacks far beyond 128‑bit ciphers.</li>
+      <li><strong>Large key space</strong> (up to 1024 bits) provides maximal security margin.</li>
+      <li><strong>Tweakability</strong>: built‑in per‑block tweak (nonce + counter) removes external chaining requirements.</li>
     </ul>
   </section>
 
   <section>
     <h2>Tweakable Block Cipher Explained</h2>
-    <p>A <strong>tweakable block cipher</strong> extends a standard block cipher with an additional <em>tweak</em> parameter. Encryption becomes:</p>
+    <p>A <strong>tweakable block cipher</strong> extends a standard block cipher with a non‑secret <em>tweak</em> parameter:</p>
     <pre><code>C = E<sub>K,T</sub>(P)</code></pre>
-    <p>Where:</p>
     <ul>
-      <li><code>K</code> is the secret key.</li>
-      <li><code>P</code> is the plaintext block.</li>
-      <li><code>T</code> is the <em>tweak</em>, a non-secret value that can vary per block.</li>
+      <li><strong>K</strong>: secret key (1024 bits)</li>
+      <li><strong>P</strong>: plaintext block (1024 bits)</li>
+      <li><strong>T</strong>: tweak (128 bits) — here composed of:</li>
+      <ol>
+        <li><strong>Nonce</strong> (64 bits): random per file</li>
+        <li><strong>Block index</strong> (64 bits): counter for each 128‑byte chunk</li>
+      </ol>
     </ul>
-    <p>In <code>threefish_cli</code>, we use a 128-bit tweak composed of:</p>
-    <ol>
-      <li><strong>Nonce</strong> (64 bits): randomly generated per file.</li>
-      <li><strong>Block index</strong> (64 bits): simple counter for each 128-byte chunk.</li>
-    </ol>
-    <p>By varying the tweak for each block, we ensure:</p>
-    <ul>
-      <li>No two blocks encrypt the same under the same key and tweak.</li>
-      <li>No external mode (CTR/CBC) is required for block-level uniqueness.</li>
-    </ul>
+    <p>This achieves CTR‑mode security without an external mode: each block’s tweak uniquely separates its keystream.</p>
   </section>
 
   <section>
-    <h2>Strengths and Trade-offs</h2>
-    <p><code>threefish_cli</code> is ideal when you need:</p>
+    <h2>Strengths & Trade‑offs</h2>
+    <h3>Strengths</h3>
     <ul>
-      <li>Extremely strong theoretical security against generic attacks.</li>
-      <li>Very large block sizes to minimize collision risks.</li>
-      <li>Built-in tweak support for simple domain separation.</li>
+      <li>Extremely high theoretical security (large blocks + key).</li>
+      <li>Built‑in tweak eliminates IV reuse risks.</li>
+      <li>Simple, minimal dependencies.</li>
     </ul>
-    <p>However, for general interoperability and hardware acceleration, <strong>AES-256</strong> remains more widely supported.</p>
+    <h3>Trade‑offs</h3>
+    <ul>
+      <li>Large block size may be slower on some hardware compared to AES.</li>
+      <li>Less ubiquitous hardware acceleration vs. AES.</li>
+      <li>Requires manual key management.</li>
+    </ul>
   </section>
 
   <section>
     <h2>License</h2>
-    <p>MIT License. See <code>LICENSE</code> file for details.</p>
+    <p>Released under the <strong>MIT License</strong>. See <code>LICENSE</code> for details.</p>
   </section>
 
+  <footer>
+    <p>*Enjoy strong, tweakable encryption with minimal fuss!*</p>
+  </footer>
 </body>
 </html>
+
