@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Serpent CLI README</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; margin: 20px; }
+    h1, h2 { color: #2c3e50; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #bdc3c7; padding: 8px; text-align: left; }
+    th { background-color: #ecf0f1; }
+    code { background-color: #ecf0f1; padding: 2px 4px; border-radius: 4px; }
+    pre { background-color: #ecf0f1; padding: 10px; border-radius: 4px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>Serpent CLI</h1>
+  <p>
+    <strong>Serpent CLI</strong> is a command-line tool that provides
+    Serpent-256 encryption and decryption with authentication
+    (HMAC-SHA256), using CBC mode with PKCS#7 padding and atomic file
+    overwrite.
+  </p>
+  <h2>Installation</h2>
+  <pre><code>git clone &lt;repo-url&gt;
+cd serpent_cli
+cargo build --release
+  </code></pre>
+  <h2>Key Setup</h2>
+  <p>
+    Place a <code>key.key</code> file (exactly 32 bytes, raw binary) in the
+    same directory as the binary. The tool will exit if this file is missing
+    or not 32 bytes long.
+  </p>
+  <h2>Usage & Flags</h2>
+  <pre><code>serpent_cli [--encrypt -e | --decrypt -d] -p &lt;paths...&gt;</code></pre>
+  <ul>
+    <li><code>-e</code>, <code>--encrypt</code>: Encrypt the specified file(s)/directory(ies).</li>
+    <li><code>-d</code>, <code>--decrypt</code>: Decrypt the specified file(s)/directory(ies).</li>
+    <li><code>-p &lt;paths...&gt;</code>: One or more paths to files or directories to process.</li>
+  </ul>
+  <h2>Encryption Process</h2>
+  <ol>
+    <li>Load a 256-bit key from <code>key.key</code>.</li>
+    <li>Derive a separate 256-bit HMAC key by computing <code>HMACKey = SHA256(key)</code>.</li>
+    <li>For each file:</li>
+    <ul>
+      <li>Generate a random 16-byte IV.</li>
+      <li>Apply PKCS#7 padding to the plaintext.</li>
+      <li>Encrypt in CBC mode with Serpent-256.</li>
+      <li>Compute HMAC-SHA256 over <code>IV ∥ ciphertext</code>.</li>
+      <li>Write out <code>IV ∥ ciphertext ∥ HMAC</code> to a temporary file, then atomically rename it.</li>
+    </ul>
+    <li>For decryption, verify HMAC first, then strip padding after CBC decryption.</li>
+  </ol>
+  <h2>Security Comparison</h2>
+  <p>The table below compares Serpent-256 (as implemented here) against AES-256:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Aspect</th>
+        <th>Serpent-256</th>
+        <th>AES-256</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Security margin</strong></td>
+        <td>32 rounds, highly conservative; no practical attacks faster than brute force.</td>
+        <td>14 rounds; minor academic reduced-round attacks but none practical.</td>
+      </tr>
+      <tr>
+        <td><strong>Block size</strong></td>
+        <td>128 bits</td>
+        <td>128 bits</td>
+      </tr>
+      <tr>
+        <td><strong>Performance</strong></td>
+        <td>Pure software; generally slower on modern CPUs.</td>
+        <td>Hardware-accelerated on AES-NI enabled CPUs; faster throughput.</td>
+      </tr>
+      <tr>
+        <td><strong>Maturity</strong></td>
+        <td>Finalist in AES competition; less ubiquitous ecosystem support.</td>
+        <td>Ubiquitous in TLS, hardware, libraries, and standards.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    In theory, Serpent-256 provides a larger safety margin, while AES-256
+    benefits from hardware acceleration and widespread adoption.
+  </p>
+</body>
+</html>
